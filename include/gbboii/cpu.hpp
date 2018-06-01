@@ -16,6 +16,13 @@ typedef enum REG_NAMES {
   REG_PC
 } reg_name_t;
 
+typedef enum FLAG_NAMES {
+  FLG_Z = 3,
+  FLG_N = 2,
+  FLG_H = 1,
+  FLG_C = 0
+} flag_name_t;
+
 class CPU {
 private:
   gb_register_t AF;
@@ -30,9 +37,19 @@ public:
 
   CPU();
   uint16_t read_register(reg_name_t reg_name);
+  uint8_t read_registerh(reg_name_t reg_name);
+  uint8_t read_registerl(reg_name_t reg_name);
   void write_register(reg_name_t reg_name, uint16_t value);
   void write_registerh(reg_name_t reg_name, uint8_t value);
   void write_registerl(reg_name_t reg_name, uint8_t value);
+
+  void set_flag(flag_name_t flag);
+  void reset_flag(flag_name_t flag);
+  bool read_flag(flag_name_t flag);
+
+  void xora(uint8_t val);
+
+  void bit(uint8_t val, int n);
 };
 
 

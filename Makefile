@@ -36,7 +36,7 @@ $(GBBOII_LIB): $(GBBOII_SRC) $(GBBOII_HEADERS) $(GBBOII_OBJ)
 	ln -s --force $@ $(GBBOII_LIB_DIR)/$(GBBOII_LIB_NAME).so
 
 %.o: %.cpp
-	$(CXX) -c $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CXX) -c $(CFLAGS) -fPIC $(LDFLAGS) -o $@ $<
 
 bin/main: src/main.cpp
 	$(CXX) $(CFLAGS) $(LDFLAGS) $(GBBOII_LIB_DIR)/libgbboii.so.0.1.0 -o $@ $<
