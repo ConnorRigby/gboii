@@ -31,7 +31,7 @@ uint8_t reset_bit(uint8_t number, int n) {
 }
 
 
-bool nth_bit(uint8_t number, int n) {
+int nth_bit(uint8_t number, int n) {
   return ( (number >> n) & 1);
   // return (number & ( 1 << n)) >> n;
 }
