@@ -21,4 +21,9 @@ uint16_t Memory::read16(mem_addr_t addr) {
   // TODO(Connor) - Is this slow?
   int16_t result;
   memcpy(&result, &mem[addr], sizeof(int16_t));
+  return result;
+}
+
+void Memory::write8(mem_addr_t addr, uint8_t data) {
+  mem[addr] = data;
 }

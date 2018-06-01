@@ -14,6 +14,8 @@ public:
   Memory(char*);
   uint8_t read8(mem_addr_t addr);
   uint16_t read16(mem_addr_t addr);
+
+  void write8(mem_addr_t addr, uint8_t data);
 };
 
 

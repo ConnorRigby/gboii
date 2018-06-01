@@ -8,7 +8,25 @@
 int load_file(const char* filename, char** buffer);
 int main(int argc, char const *argv[]);
 
+void test() {
+  CPU cpu = CPU();
+  cpu.write_register(REG_HL, 0xabcd);
+  debug_print("REG HL: %#04x | REG H: %#02x | REG L: %#02x\r\n", cpu.read_register(REG_HL), cpu.read_registerh(REG_HL), cpu.read_registerl(REG_HL));
+  cpu.write_registerh(REG_HL, 0xBB);
+  cpu.write_registerl(REG_HL, 0xCC);
+  debug_print("REG HL: %#04x | REG H: %#02x | REG L: %#02x\r\n", cpu.read_register(REG_HL), cpu.read_registerh(REG_HL), cpu.read_registerl(REG_HL));
+
+  // cpu.set_flag(FLG_Z);
+  cpu.xora(0);
+  cpu.bit(cpu.read_registerh(REG_AF), 7);
+  debug_print("FLAGZ: %d\r\n", cpu.read_flag(FLG_Z));
+
+  debug_print("0x9FFE bit 7: %d\r\n", nth_bit(0x9F, 7));
+}
+
 int main(int argc, char const *argv[]) {
+  // test();
+  // return(0);
   if(argc != 2) {
     debug_print("usage: %s bootrom.bin rom.gb\r\n", argv[0]);
     return(1);
