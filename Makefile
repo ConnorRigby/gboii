@@ -1,0 +1,45 @@
+GBBOII_VERSION_MAJOR := 0
+GBBOII_VERSION_MINOR := 1
+GBBOII_VERSION_PATCH := 0
+
+GBBOII_LIB_NAME := libgbboii
+
+GBBOII_LIB_DIR := lib
+GBBOII_INCLUDE_DIR := include
+
+GBBOII_SRC := $(wildcard src/gbboii/*.cpp)
+GBBOII_HEADERS := $(wildcard include/gbboii/*.hpp)
+GBBOII_OBJ := $(GBBOII_SRC:.cpp=.o)
+
+CFLAGS := -Wall -Wextra -std=c++17 -I$(GBBOII_INCLUDE_DIR) -DDEBUG
+LDFLAGS :=
+
+GBBOII_LIB_CFLAGS := $(CFLAGS) -fPIC
+GBBOII_LIB_LDFLAGS := $(LDFLAGS) -fPIC --shared -lc -Wl,-soname,$(GBBOII_LIB_NAME).so.$(GBBOII_VERSION_MAJOR).$(GBBOII_VERSION_MINOR).$(GBBOII_VERSION_PATCH)
+
+GBBOII_LIB := $(GBBOII_LIB_DIR)/$(GBBOII_LIB_NAME).so.$(GBBOII_VERSION_MAJOR).$(GBBOII_VERSION_MINOR).$(GBBOII_VERSION_PATCH)
+
+.PHONY: all clean run
+
+all: $(GBBOII_LIB)
+
+clean:
+	$(RM) $(GBBOII_OBJ)
+	$(RM) $(GBBOII_LIB)
+	$(RM) $(GBBOII_LIB_DIR)/$(GBBOII_LIB_NAME).so.$(GBBOII_VERSION_MAJOR)
+	$(RM) $(GBBOII_LIB_DIR)/$(GBBOII_LIB_NAME).so
+	$(RM) bin/main
+
+$(GBBOII_LIB): $(GBBOII_SRC) $(GBBOII_HEADERS) $(GBBOII_OBJ)
+	$(CXX) $(GBBOII_LIB_CFLAGS) $(GBBOII_LIB_LDFLAGS) $(GBBOII_OBJ) -o $@
+	ln -s --force $@ $(GBBOII_LIB_DIR)/$(GBBOII_LIB_NAME).so.$(GBBOII_VERSION_MAJOR)
+	ln -s --force $@ $(GBBOII_LIB_DIR)/$(GBBOII_LIB_NAME).so
+
+%.o: %.cpp
+	$(CXX) -c $(CFLAGS) $(LDFLAGS) -o $@ $<
+
+bin/main: src/main.cpp
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(GBBOII_LIB_DIR)/libgbboii.so.0.1.0 -o $@ $<
+
+run: all bin/main
+	@LD_LIBRARY_PATH=$(GBBOII_LIB_DIR) bin/main DMG_ROM.bin

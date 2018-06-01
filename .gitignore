@@ -1,0 +1,6 @@
+*.so*
+*.o
+bin/*
+!bin/.empty
+*.bin
+*.gb*
