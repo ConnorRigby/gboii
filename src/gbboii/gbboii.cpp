@@ -22,7 +22,9 @@ void Gameboy::tick() {
       cpu.write_register(REG_PC, pc+3);
       cpu.cycles+=3;
     } break;
-    default:
+    default: {
       debug_print("Unknown instruction: %#04x at address: %#04x  \r\n", instr, addr);
+      running = false;
+    } break;
   }
 }
