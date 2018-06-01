@@ -19,7 +19,7 @@ void Gameboy::tick() {
       uint16_t pc = cpu.read_register(REG_PC);
       cpu.write_register(REG_PC, pc+1);
       if(cpu.read_flag(FLG_Z) == 0) {
-        int8_t jmp_offset = mem.read8(pc+1);
+        int8_t jmp_offset = mem.read8(pc);
         cpu.write_register(REG_PC, pc+jmp_offset);
         debug_print("JMP: %#04x\r\n", pc+jmp_offset);
         cpu.cycles+=12;
