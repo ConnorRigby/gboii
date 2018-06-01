@@ -126,7 +126,7 @@ void CPU::xora(uint8_t val) {
 void CPU::bit(uint8_t val, int n) {
   int result = nth_bit(val, n);
   debug_print("BIT: %#02x %d: %d\r\n", val, n, result);
-  if(result == 0) { set_flag(FLG_Z); } else { reset_flag(FLG_Z); }
+  if(result == 1) { reset_flag(FLG_Z); } else { set_flag(FLG_Z); }
   reset_flag(FLG_N);
   set_flag(FLG_H);
 }
