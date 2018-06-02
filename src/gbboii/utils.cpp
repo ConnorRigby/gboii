@@ -31,6 +31,12 @@ uint8_t reset_bit(uint8_t number, int n) {
   return number;
 }
 
+uint8_t write_bit(uint8_t data, int n, bool value) {
+  if(value == 1) { return set_bit(data, n); } else
+  if(value == 0) { return reset_bit(data, n); } else {
+    return -1; // stupid compiler
+  }
+}
 
 bool nth_bit(uint8_t number, int n) {
   return ( (number >> n) & 1);
