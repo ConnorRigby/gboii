@@ -11,7 +11,7 @@ GBBOII_SRC := $(wildcard src/gbboii/*.cpp)
 GBBOII_HEADERS := $(wildcard include/gbboii/*.hpp)
 GBBOII_OBJ := $(GBBOII_SRC:.cpp=.o)
 
-CFLAGS := -Wall -Wextra -std=c++17 -I$(GBBOII_INCLUDE_DIR) -DDEBUG
+CFLAGS := -Wall -Wextra -std=c++17 -I$(GBBOII_INCLUDE_DIR) -DDEBUG -g
 LDFLAGS :=
 
 GBBOII_LIB_CFLAGS := $(CFLAGS) -fPIC
@@ -42,4 +42,4 @@ bin/main: src/main.cpp
 	$(CXX) $(CFLAGS) $(LDFLAGS) $(GBBOII_LIB_DIR)/libgbboii.so.0.1.0 -o $@ $<
 
 run: all bin/main
-	@LD_LIBRARY_PATH=$(GBBOII_LIB_DIR) bin/main DMG_ROM.bin
+	LD_LIBRARY_PATH=$(GBBOII_LIB_DIR) bin/main DMG_ROM.bin
