@@ -5,6 +5,7 @@
 
 const mem_addr_t ier = 0xffff;
 const mem_addr_t irr = 0xff0f;
+const int MAXCYCLES = 69905;
 
 Gameboy::Gameboy(char* bootrom) : mem(Memory(bootrom)) {
   debug_print("Gameboy init.\r\n");
@@ -15,12 +16,23 @@ Gameboy::Gameboy(char* bootrom) : mem(Memory(bootrom)) {
   scanline_counter = 0;
 }
 
+void Gameboy::advance_frame() {
+  int cyclesThisUpdate = 0;
+  while(cyclesThisUpdate < MAXCYCLES) {
+    execute_opcode();
+    cyclesThisUpdate+=cpu.cycles;
+    update_timers();
+    update_graphics();
+    do_interupts();
+  }
+}
+
 bool Gameboy::is_lcd_enabled() {
   return nth_bit(mem.read8(0xFF40), 7);
 }
 
 void Gameboy::draw_scanline() {
-  
+
 }
 
 void Gameboy::set_lcd_status() {
@@ -201,7 +213,7 @@ void Gameboy::update_timers() {
   }
 }
 
-void Gameboy::tick() {
+void Gameboy::execute_opcode() {
   uint16_t addr = cpu.read_register(REG_PC);
   opcode_t instr = mem.read8(addr);
   // debug_print("Gameboy tick: instr: %#04x PC: %#04x\r\n", instr, addr);

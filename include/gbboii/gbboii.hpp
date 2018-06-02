@@ -24,7 +24,8 @@ public:
   Memory mem;
   Gameboy(char* bootrom);
   bool running;
-  void tick();
+  void advance_frame();
+  void execute_opcode();
   void update_timers();
   bool is_clock_enabled();
   void set_clock_freq(uint8_t new_freq);

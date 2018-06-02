@@ -16,18 +16,9 @@ int load_file(const char* filename, char** buffer);
 int main(int argc, char const *argv[]);
 
 void emulate(Gameboy* c, gpu* g) {
-    const int MAXCYCLES = 69905;
-    int cyclesThisUpdate = 0;
-
-    while(cyclesThisUpdate < MAXCYCLES) {
-      c->tick();
-      c->do_interupts();
-      int cycles = c->cpu.cycles;
-      cyclesThisUpdate+=cycles;
-      c->update_timers();
-      g->step();
-    }
-    g->draw_pixels();
+  c->advance_frame();
+  g->step();
+  g->draw_pixels();
 }
 
 int main(int argc, char const *argv[]) {
