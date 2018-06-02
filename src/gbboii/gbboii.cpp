@@ -16,6 +16,9 @@ Gameboy::Gameboy(char* bootrom) : mem(Memory(bootrom)) {
   scanline_counter = 0;
 }
 
+bool Gameboy::is_lcd_enabled() { return nth_bit(mem.read8(0xFF40), 7); }
+bool Gameboy::is_clock_enabled() { return nth_bit(mem.read8(TMC), 2); }
+
 void Gameboy::advance_frame() {
   int cyclesThisUpdate = 0;
   while(cyclesThisUpdate < MAXCYCLES) {
@@ -25,10 +28,6 @@ void Gameboy::advance_frame() {
     update_graphics();
     do_interupts();
   }
-}
-
-bool Gameboy::is_lcd_enabled() {
-  return nth_bit(mem.read8(0xFF40), 7);
 }
 
 void Gameboy::draw_scanline() {
@@ -163,10 +162,6 @@ void Gameboy::service_interupt(int interupt) {
     case 2: cpu.write_register(REG_PC, 0x50); break;
     case 4: cpu.write_register(REG_PC, 0x60); break;
   }
-}
-
-bool Gameboy::is_clock_enabled() {
-  return nth_bit(mem.read8(TMC), 2);
 }
 
 void Gameboy::set_clock_freq(uint8_t new_freq) {
