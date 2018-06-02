@@ -11,7 +11,6 @@ Memory::Memory(char* bootrom) {
       mem[i] = 0;
     }
   }
-  debug_print("hello??\r\n");
 }
 
 uint8_t Memory::read8(mem_addr_t addr)  {

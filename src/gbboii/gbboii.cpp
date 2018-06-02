@@ -24,20 +24,37 @@ void Gameboy::tick() {
       cpu.cycles+=8;
     } break;
 
+    // LD DE,d16 3/16 ----
+    case 0x11: {
+      uint16_t data = mem.read16(addr+1);
+      cpu.write_register(REG_DE, data);
+      cpu.write_register(REG_PC, addr+3);
+      cpu.cycles+=16;
+    } break;
+
+    // LD A,(DE) 1/8 ----
+    case 0x1A: {
+      mem_addr_t read_addr = cpu.read_register(REG_DE);
+      uint8_t data = mem.read8(read_addr);
+      cpu.write_registerh(REG_AF, data);
+      cpu.write_register(REG_PC, addr+1);
+      cpu.cycles+=8;
+    } break;
+
     //JR NZ,r8 2/12|8 ----
     case 0x20: {
       cpu.write_register(REG_PC, addr+1);
       uint16_t pc = cpu.read_register(REG_PC);
       bool zero_flag_is_reset = cpu.flag_is_reset(FLG_Z);
-      debug_print("\tZero flag %s reset: %d\r\n", zero_flag_is_reset ? "is" : "is not", zero_flag_is_reset);
+      // debug_print("\tZero flag %s reset: %d\r\n", zero_flag_is_reset ? "is" : "is not", zero_flag_is_reset);
       if(zero_flag_is_reset == 1) {
         // TODO(Connor) not sure why i have to do this negative thing.
         uint8_t jmp_offset = signed_int8(mem.read8(pc));
-        debug_print("\tJR %#04x + (%d) = %#04x\r\n", pc, jmp_offset, (pc+1)-jmp_offset);
+        // debug_print("\tJR %#04x + (%d) = %#04x\r\n", pc, jmp_offset, (pc+1)-jmp_offset);
         cpu.write_register(REG_PC, (pc+1)-jmp_offset);
         cpu.cycles+=12;
       } else {
-        debug_print("\tNot JMP: %#04x\r\n", pc+1);
+        // debug_print("\tNot JMP: %#04x\r\n", pc+1);
         cpu.write_register(REG_PC, pc+1);
         cpu.cycles+=8;
       }
@@ -89,6 +106,15 @@ void Gameboy::tick() {
       cpu.cycles+=8;
     } break;
 
+    // LD (HL),A 1/8 ----
+    case 0x77: {
+      mem_addr_t write_addr = cpu.read_register(REG_HL);
+      uint8_t data = cpu.read_registerh(REG_AF);
+      mem.write8(write_addr, data);
+      cpu.write_register(REG_PC, addr + 1);
+      cpu.cycles+=8;
+    } break;
+
     // XOR A 1/4 z000
     case 0xAF: {
       uint8_t val = cpu.read_registerh(REG_AF);
@@ -116,6 +142,16 @@ void Gameboy::tick() {
           running = false;
         }
       }
+    } break;
+
+    // LDH (a8),A 2/12 ---
+    // LD A,($FF00+a8) 2/12 ---
+    case 0xE0: {
+      mem_addr_t write_addr = 0xFF00 + mem.read8(addr + 1);
+      uint8_t data = cpu.read_registerh(REG_AF);
+      mem.write8(write_addr, data);
+      cpu.write_register(REG_PC, addr+2);
+      cpu.cycles += 4;
     } break;
 
     // LD (C),A 2/8 ----
