@@ -28,11 +28,13 @@ void Gameboy::tick() {
     case 0x20: {
       cpu.write_register(REG_PC, addr+1);
       uint16_t pc = cpu.read_register(REG_PC);
-      if(cpu.read_flag(FLG_Z) == 0) {
+      bool zero_flag_is_reset = cpu.flag_is_reset(FLG_Z);
+      debug_print("\tZero flag %s reset: %d\r\n", zero_flag_is_reset ? "is" : "is not", zero_flag_is_reset);
+      if(zero_flag_is_reset == 1) {
         // TODO(Connor) not sure why i have to do this negative thing.
         uint8_t jmp_offset = signed_int8(mem.read8(pc));
-        debug_print("\tJR %#04x + (%d) = %#04x\r\n", pc, jmp_offset, pc+1+jmp_offset);
-        cpu.write_register(REG_PC, pc+1+(-jmp_offset));
+        debug_print("\tJR %#04x + (%d) = %#04x\r\n", pc, jmp_offset, (pc+1)-jmp_offset);
+        cpu.write_register(REG_PC, (pc+1)-jmp_offset);
         cpu.cycles+=12;
       } else {
         debug_print("\tNot JMP: %#04x\r\n", pc+1);
@@ -72,7 +74,8 @@ void Gameboy::tick() {
     case 0x32: {
       mem_addr_t write_addr = cpu.read_register(REG_HL);
       uint8_t data = cpu.read_registerh(REG_AF);
-      mem.write8(addr, data);
+      // debug_print("write data: %#02x to address: %#04x\r\n", data, write_addr);
+      // mem.write8(addr, data);
 
       cpu.write_register(REG_HL, write_addr-1);
       cpu.write_register(REG_PC, cpu.read_register(REG_PC) + 1);

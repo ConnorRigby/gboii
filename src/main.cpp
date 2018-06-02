@@ -16,12 +16,17 @@ void test() {
   cpu.write_registerl(REG_HL, 0xCC);
   debug_print("REG HL: %#04x | REG H: %#02x | REG L: %#02x\r\n", cpu.read_register(REG_HL), cpu.read_registerh(REG_HL), cpu.read_registerl(REG_HL));
 
-  // cpu.set_flag(FLG_Z);
+  cpu.set_flag(FLG_Z);
   cpu.xora(0);
   cpu.bit(cpu.read_registerh(REG_AF), 7);
-  debug_print("FLAGZ: %d\r\n", cpu.read_flag(FLG_Z));
+  debug_print("FLAGZ: %d (should be 1)\r\n", cpu.read_flag(FLG_Z));
 
-  debug_print("0x9FFE bit 7: %d\r\n", nth_bit(0x9F, 7));
+  cpu.reset_flag(FLG_Z);
+  debug_print("FLAGZ: %d (should be zero)\r\n", cpu.read_flag(FLG_Z));
+
+  // debug_print("0x9FFE bit 7: %d\r\n", nth_bit(0x9F, 7));
+
+  // cpu.set_flag(FLG_Z);
 }
 
 int main(int argc, char const *argv[]) {

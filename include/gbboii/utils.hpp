@@ -28,7 +28,7 @@ uint8_t read_low_byte(uint16_t data);
 uint8_t set_bit(uint8_t data, int n);
 uint8_t reset_bit(uint8_t data, int n);
 
-int nth_bit(uint8_t number, int n);
+bool nth_bit(uint8_t number, int n);
 
 uint8_t signed_int8(uint8_t number);
 

@@ -45,7 +45,10 @@ public:
 
   void set_flag(flag_name_t flag);
   void reset_flag(flag_name_t flag);
-  int read_flag(flag_name_t flag);
+  void write_flag(flag_name_t flag, bool value);
+  bool read_flag(flag_name_t flag);
+  bool flag_is_set(flag_name_t flag);
+  bool flag_is_reset(flag_name_t flag);
 
   void xora(uint8_t val);
 

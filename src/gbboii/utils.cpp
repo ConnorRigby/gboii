@@ -21,19 +21,19 @@ uint8_t read_low_byte(uint16_t data) {
   return data & 0xFF;
 }
 
-
 uint8_t set_bit(uint8_t number, int n) {
-  return (number | (1 << n));
+  number |= (1<<n);
+  return number;
 }
 
 uint8_t reset_bit(uint8_t number, int n) {
-  return (number | (0 << n));
+  number &= ~(1<<n);
+  return number;
 }
 
 
-int nth_bit(uint8_t number, int n) {
+bool nth_bit(uint8_t number, int n) {
   return ( (number >> n) & 1);
-  // return (number & ( 1 << n)) >> n;
 }
 
 uint8_t signed_int8(uint8_t number) {

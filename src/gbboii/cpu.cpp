@@ -94,18 +94,34 @@ void CPU::write_registerl(reg_name_t reg_name, uint8_t value) {
 
 void CPU::set_flag(flag_name_t flag) {
   uint8_t val = read_registerl(REG_AF);
-  write_registerl(REG_AF, set_bit(val, flag));
+  uint8_t updated = set_bit(val, flag);
+  // debug_print("setting flag %d=%d old: %d\r\n", flag, updated, val);
+  write_registerl(REG_AF, updated);
 }
 
 void CPU::reset_flag(flag_name_t flag) {
   uint8_t val = read_registerl(REG_AF);
-  write_registerl(REG_AF, reset_bit(val, flag));
-  debug_print("flag %d value: %d\r\n", flag, read_flag(flag));
+  uint8_t updated = reset_bit(val, flag);
+  // debug_print("resetting flag %d=%d old: %d\r\n", flag, updated, val);
+  write_registerl(REG_AF, updated);
 }
 
-int CPU::read_flag(flag_name_t flag) {
+void CPU::write_flag(flag_name_t flag, bool value) {
+  if(value == 1) { set_flag(flag); } else
+  if(value == 0) { reset_flag(flag); }
+}
+
+bool CPU::read_flag(flag_name_t flag) {
   uint8_t val = read_registerl(REG_AF);
   return nth_bit(val, flag);
+}
+
+bool CPU::flag_is_set(flag_name_t flag) {
+  return read_flag(flag) == 1;
+}
+
+bool CPU::flag_is_reset(flag_name_t flag) {
+  return read_flag(flag) == 0;
 }
 
 void CPU::xora(uint8_t val) {
@@ -125,7 +141,8 @@ void CPU::xora(uint8_t val) {
 
 void CPU::bit(uint8_t val, int n) {
   int result = nth_bit(val, n);
-  debug_print("BIT: %#02x %d: %d\r\n", val, n, result);
+  // debug_print("BIT: %#02x %d: %d\r\n", val, n, result);
+  write_flag(FLG_Z, result == 0);
   if(result == 1) { reset_flag(FLG_Z); } else { set_flag(FLG_Z); }
   reset_flag(FLG_N);
   set_flag(FLG_H);
