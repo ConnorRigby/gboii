@@ -74,8 +74,8 @@ void Gameboy::tick() {
     case 0x32: {
       mem_addr_t write_addr = cpu.read_register(REG_HL);
       uint8_t data = cpu.read_registerh(REG_AF);
-      // debug_print("write data: %#02x to address: %#04x\r\n", data, write_addr);
-      // mem.write8(addr, data);
+      debug_print("write data: %#02x to address: %#04x\r\n", data, write_addr);
+      mem.write8(addr, data);
 
       cpu.write_register(REG_HL, write_addr-1);
       cpu.write_register(REG_PC, cpu.read_register(REG_PC) + 1);

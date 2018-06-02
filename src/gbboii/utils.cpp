@@ -37,6 +37,5 @@ bool nth_bit(uint8_t number, int n) {
 }
 
 uint8_t signed_int8(uint8_t number) {
-  // return (uint16_t)(int8_t)number;
   return -std::uintmax_t(number);
 }
