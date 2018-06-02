@@ -37,3 +37,11 @@ void Memory::inspect() {
   }
   debug_print_q("\r\n");
 }
+
+const mem_addr_t ier = 0xffff;
+const mem_addr_t irr = 0xff0f;
+void Memory::request_interrupt(int id)  {
+	uint8_t data = read8(irr);
+	data |= (1 << id);
+	write8(irr, data);
+}

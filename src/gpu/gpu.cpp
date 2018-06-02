@@ -1,0 +1,323 @@
+// This file contains the code for emulating the GPU
+// of the Gameboy
+
+// We will eventually use gtkmm to create a
+// canvas of 160 * 144 on which we'll
+// draw
+
+// Right now have to make do with a 2d array of numbers
+
+// this address contains the line being scanned currently
+const uint16_t linereg = 0xff44;
+
+// this address contains the status of the lcd
+// bits 0 & 1 contain the mode
+// 00 - hblank
+// 01 - vblank
+// 10 - searching sprites
+// 11 - accessing vram
+const uint16_t statreg = 0xff41;
+
+// lcd control register
+// address = 0xff40
+// Bit 7 - LCD Display Enable (0=Off, 1=On)
+// Bit 6 - Window Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
+// Bit 5 - Window Display Enable (0=Off, 1=On)
+// Bit 4 - BG & Window Tile Data Select (0=8800-97FF, 1=8000-8FFF)
+// Bit 3 - BG Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
+// Bit 2 - OBJ (Sprite) Size (0=8x8, 1=8x16)
+// Bit 1 - OBJ (Sprite) Display Enable (0=Off, 1=On)
+// Bit 0 - BG Display (for CGB see below) (0=Off, 1=On)
+const uint16_t lcd_control = 0xff40;
+
+gpu::gpu(Gameboy* m, gui* s)
+{
+    screen = s;
+    c = m;
+    memset(pixels, 0, sizeof(pixels));
+    clock = 0;
+    change_mode(1);
+    line = 0;
+    // c->memory[linereg] = 0;
+    c->mem.write8(linereg, 0);
+    cnt = 0;
+}
+
+void gpu::change_mode(int id)
+{
+    mode = id;
+    int bit1 = id & 1;
+    int bit2 = (id >> 1) & 1;
+
+    if (bit1)
+        c->mem.write8(statreg, c->mem.read8(statreg) | 1);
+    else
+        c->mem.write8(statreg, c->mem.read8(statreg) & ~((uint8_t)1));
+
+    if (bit2)
+        c->mem.write8(statreg, c->mem.read8(statreg) | (1 << 1));
+    else
+        c->mem.write8(statreg, c->mem.read8(statreg) & ~((uint8_t)(1<<1)));
+}
+
+void gpu::change_scanline()
+{
+    line++;
+    // c->memory[linereg]++;
+    c->mem.write8(linereg, c->mem.read8(linereg)+1);
+    if (line > 153)
+    {
+        line = 0;
+        // c->memory[linereg] = 0;
+        c->mem.write8(linereg, 0);
+    }
+}
+
+bool gpu::on()
+{
+    // uint8_t status = c->read(lcd_control);
+    uint8_t status = c->mem.read8(lcd_control);
+    return (status >> 7) & 1;
+}
+
+void gpu::step()
+{
+
+    // if gpu is off then do nothing
+    // if (!on())
+        // return;
+    // add the number of cycles passed to the clock
+    // clock += c->t;
+    clock += c->cpu.cycles;
+    if (mode == 0) // horizontal blank mode
+    {
+        if (clock >= 204) // horizontal blank mode over
+        {
+            clock = 0;
+            change_scanline();
+            if (line == 143)
+            {
+                change_mode(1);
+                // TODO: Request an interrupt also here
+                cnt++;
+                c->mem.request_interrupt(0);
+                draw_pixels();
+            }
+            else
+            {
+                change_mode(2);
+            }
+        }
+    }
+    // vertical blank mode
+    // goes on for 4560 cycles
+    // i.e 456 cycles each for 10 scanlines from 144 to 153
+    else if (mode == 1)
+    {
+        if (clock >= 456)
+        {
+            clock = 0;
+            if (line == 0)
+            {
+                change_mode(2);
+            }
+            else
+            {
+                change_scanline();
+                if (line == 0)
+                    change_mode(2);
+            }
+        }
+    }
+    // scanline accessing sprites etc
+    // goes on for 80 cycles
+    else if (mode == 2)
+    {
+        if (clock >= 80)
+        {
+            clock = 0;
+            change_mode(3);
+        }
+    }
+    // scanline accessing vram
+    // after this is done the entire line can be written to the
+    // pixels array for drawing later
+    else if (mode == 3)
+    {
+        if (clock >= 172)
+        {
+            clock = 0;
+            change_mode(0);
+            render_tiles();
+        }
+    }
+}
+
+
+void gpu::render_tiles()
+{
+    if (line >= 144)
+        return;
+
+    // from where to get the tiles
+    // this value will either be 0x8000 or 0x8800
+    // based on bit 4 of the lcd control register
+    uint16_t where;
+    // if where is 0x8000, then tiles are indexed from 0 to 255
+    // otherwise if where is 0x8800, then tiles are indexed from -128 to 127
+    bool is_signed;
+
+    // uint8_t scrollx = c->read(0xff43), scrolly = c->read(0xff42);
+    uint8_t scrollx = c->mem.read8(0xFF43), scrolly = c->mem.read8(0xff42);
+    // uint8_t windowx = c->read(0xff4b) - 7, windowy = c->read(0xff4a);
+    uint8_t windowx = c->mem.read8(0xff4b) - 7, windowy = c->mem.read8(0xff4a);
+
+    int using_window = 0;
+    // get the value in control register
+    // uint8_t control = c->read(lcd_control);
+    uint8_t control = c->mem.read8(lcd_control);
+
+    if ((control >> 5) & 1)
+    {
+        if (line >= windowy)
+        {
+            printf("using window\n");
+            using_window = 1;
+        }
+    }
+
+
+    // test bit 4 of the control register
+    if ((control >> 4) & 1)
+    {
+        where = 0x8000;
+        is_signed = false;
+    }
+    else
+    {
+        where = 0x8800;
+        is_signed = true;
+    }
+
+    // base address of where the tiles are mapped to pixels in memory
+    // this depends on bit 3 of the control register
+    // if bit is 1, then render from 0x9c00
+    // else render from 0x9800
+    uint16_t tilemap;
+    if (!using_window)
+    {
+        if ((control >> 3) & 1)
+            tilemap = 0x9c00;
+        else
+            tilemap = 0x9800;
+    }
+    else
+    {
+        if ((control >> 6) & 1)
+            tilemap = 0x9c00;
+        else
+            tilemap = 0x9800;
+    }
+
+    // find which y out of the 256 x 256 background we're drawing
+    uint8_t y = scrolly + line;
+    if (using_window)
+        y = line - windowy;
+
+    // which row in the 32 x 32 matrix of mapping will contain
+    // the y line
+    uint16_t tile_row = ((uint8_t)(y / 8));
+
+    for (int i = 0; i < 160; i++)
+    {
+        uint8_t x = i + scrollx;
+        if (using_window)
+        {
+            if (i >= windowx)
+                x = i - windowx;
+        }
+
+        // which column will contain the x line
+        uint16_t tile_column = x / 8;
+
+        uint16_t addr = tilemap + tile_row * 32 + tile_column;
+        int16_t tilenum;
+        if (is_signed)
+        {
+          // tilenum = (int8_t) c->read(addr);
+          // tilenum = (int8_t) c->mem.read8(addr);
+          tilenum = signed_int8(c->mem.read8(addr));
+          tilenum = -tilenum;
+        }
+        else
+        {
+          // tilenum = c->read(addr);
+          tilenum = c->mem.read8(addr);
+        }
+
+        uint16_t tile_address;
+        // size of one tile = 16 bytes
+        if (!is_signed)
+        {
+            tile_address = where + (tilenum * 16);
+        }
+        else
+        {
+            tile_address = where + ((tilenum + 128) * 16);
+        }
+
+        // need lno'th column of tilenum
+        uint8_t lno = y % 8;
+        // uint8_t byte1 = c->read(tile_address + lno * 2);
+        uint8_t byte1 = c->mem.read8(tile_address + lno * 2);
+        // uint8_t byte2 = c->read(tile_address + lno * 2 + 1);
+        uint8_t byte2 = c->mem.read8(tile_address + lno * 2 + 1);
+
+        // now byte1 and byte2 contains data for the yth line
+        // bit 7 contains val for x = 0
+        uint8_t req_bit = 7 - (x % 8);
+        uint8_t bit1 = (byte1 >> req_bit) & 1;
+        uint8_t bit2 = (byte2 >> req_bit) & 1;
+        uint8_t colorid = (bit1 << 1) | bit2;
+        int color = getcolor(colorid, 0xff47);
+
+        int red, blue, green;
+        if (color == 0) // white
+            red = blue = green = 0xff;
+        else if (color == 1) // light gray
+            red = 0xcc, blue = 0xcc, green = 0xcc;
+        else if (color == 2) // dark gray
+            red = 0x77, blue = 0x77, green = 0x77;
+        else
+            red = blue = green = 0;
+
+        pixels[i][line][0] = red;
+        pixels[i][line][1] = blue;
+        pixels[i][line][2] = green;
+
+    }
+}
+
+int gpu::getcolor(int id, uint16_t palette)
+{
+    // uint8_t data = c->read(palette);
+    uint8_t data = c->mem.read8(palette);
+    int hi = 2 * id + 1, lo = 2 * id;
+    int bit1 = (data >> hi) & 1;
+    int bit0 = (data >> lo) & 1;
+    return (bit1 << 1) | bit0;
+}
+
+void gpu::draw_pixels()
+{
+    for (int i = 0; i < 144; i++)
+    {
+        for (int j = 0; j < 160; j++) {
+            int red = pixels[j][i][0], blue = pixels[j][i][1], green = pixels[j][i][2];
+            printf("\r r=%d b=%d, g=%d", red, blue, green);
+            SDL_SetRenderDrawColor(screen->renderer, red, blue, green, 0xFF);
+            SDL_RenderDrawPoint(screen->renderer, j, i);
+        }
+    }
+    SDL_RenderPresent(screen->renderer);
+}

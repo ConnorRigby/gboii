@@ -5,33 +5,29 @@
 #include <cstdlib>
 #include <string.h>
 
+
+#include <SDL2/SDL.h>
+#include "gpu/gui.hpp"
+#include "gpu/gui.cpp"
+#include "gpu/gpu.hpp"
+#include "gpu/gpu.cpp"
+
 int load_file(const char* filename, char** buffer);
 int main(int argc, char const *argv[]);
 
-void test() {
-  CPU cpu = CPU();
-  cpu.write_register(REG_HL, 0xabcd);
-  debug_print("REG HL: %#04x | REG H: %#02x | REG L: %#02x\r\n", cpu.read_register(REG_HL), cpu.read_registerh(REG_HL), cpu.read_registerl(REG_HL));
-  cpu.write_registerh(REG_HL, 0xBB);
-  cpu.write_registerl(REG_HL, 0xCC);
-  debug_print("REG HL: %#04x | REG H: %#02x | REG L: %#02x\r\n", cpu.read_register(REG_HL), cpu.read_registerh(REG_HL), cpu.read_registerl(REG_HL));
+int fc = 0;
+void emulate(Gameboy* c, gpu* g) {
+    //int max_cycles = 69905; //  frequency of gameboy / 60
+    int cycles = 0;
+    c->tick();
+    g->step();
 
-  cpu.set_flag(FLG_Z);
-  cpu.xora(0);
-  cpu.bit(cpu.read_registerh(REG_AF), 7);
-  debug_print("FLAGZ: %d (should be 1)\r\n", cpu.read_flag(FLG_Z));
-
-  cpu.reset_flag(FLG_Z);
-  debug_print("FLAGZ: %d (should be zero)\r\n", cpu.read_flag(FLG_Z));
-
-  // debug_print("0x9FFE bit 7: %d\r\n", nth_bit(0x9F, 7));
-
-  // cpu.set_flag(FLG_Z);
+    cycles += c->cpu.cycles;
+    fc++;
+    //printf("fc = %d\n", fc);
 }
 
 int main(int argc, char const *argv[]) {
-  // test();
-  // return(0);
   if(argc != 2) {
     debug_print("usage: %s bootrom.bin rom.gb\r\n", argv[0]);
     return(1);
@@ -50,8 +46,25 @@ int main(int argc, char const *argv[]) {
 
   Gameboy gb(bootrom_buffer);
   free(bootrom_buffer);
-  while(gb.running) {
-    gb.tick();
+  gui screen;
+  gpu g(&gb, &screen);
+
+  screen.init();
+
+  int quit = 0;
+  SDL_Event e;
+  //LTimer fps;
+  while (!quit)
+  {
+      while(SDL_PollEvent(&e) != 0)
+      {
+          //User requests quit
+          if(e.type == SDL_QUIT)
+          {
+              quit = 1;
+          }
+      }
+      emulate(&gb, &g);
   }
   return 0;
 }

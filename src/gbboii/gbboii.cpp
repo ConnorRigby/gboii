@@ -11,7 +11,7 @@ Gameboy::Gameboy(char* bootrom) : mem(Memory(bootrom)) {
 void Gameboy::tick() {
   uint16_t addr = cpu.read_register(REG_PC);
   opcode_t instr = mem.read8(addr);
-  debug_print("Gameboy tick: instr: %#04x PC: %#04x\r\n", instr, addr);
+  // debug_print("Gameboy tick: instr: %#04x PC: %#04x\r\n", instr, addr);
 
   switch(instr) {
 
@@ -337,12 +337,12 @@ void Gameboy::tick() {
 
       mem.write8(stack_addr, cpu.read_registerl(REG_PC));
       mem.write8(stack_addr-1, cpu.read_registerh(REG_PC));
-      mem_addr_t return_addr = cpu.read_register(REG_PC);
+      // mem_addr_t return_addr = cpu.read_register(REG_PC);
 
       cpu.write_register(REG_SP, cpu.read_register(REG_SP) - 2);
       cpu.write_register(REG_PC, call_addr);
       cpu.cycles += 24;
-      debug_print("CALL: %#04x (%#04x)\r\n", call_addr, return_addr);
+      // debug_print("CALL: %#04x (%#04x)\r\n", call_addr, return_addr);
     } break;
 
     // LDH (a8),A 2/12 ---
@@ -394,14 +394,14 @@ void Gameboy::tick() {
     } break;
 
     default: {
-      debug_print("Unknown instruction: %#04x at address: %#04x  \r\n", instr, addr);
-      running = false;
+      // debug_print("Unknown instruction: %#04x at address: %#04x  \r\n", instr, addr);
+      // running = false;
     } break;
   }
 
-  if(addr == cpu.read_register(REG_PC) && running) {
-    debug_print("YOU FORGOT TO INC PC!!!\r\n");
-    running = false;
-  }
+  // if(addr == cpu.read_register(REG_PC) && running) {
+  //   debug_print("YOU FORGOT TO INC PC!!!\r\n");
+  //   running = false;
+  // }
 
 }

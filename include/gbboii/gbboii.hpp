@@ -8,10 +8,9 @@
 #include <stdbool.h>
 
 class Gameboy {
-private:
+public:
   CPU cpu;
   Memory mem;
-public:
   Gameboy(char* bootrom);
   bool running;
   void tick();

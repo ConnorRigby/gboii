@@ -16,6 +16,7 @@ public:
   uint16_t read16(mem_addr_t addr);
 
   void write8(mem_addr_t addr, uint8_t data);
+  void request_interrupt(int id);
 
   void inspect();
 };

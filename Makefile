@@ -14,6 +14,9 @@ GBBOII_OBJ := $(GBBOII_SRC:.cpp=.o)
 CFLAGS := -Wall -Wextra -std=c++17 -I$(GBBOII_INCLUDE_DIR) -DDEBUG -g
 LDFLAGS :=
 
+SDL_CFLAGS := $(shell pkg-config --cflags sdl2)
+SDL_LDFLAGS := $(shell pkg-config --libs sdl2)
+
 GBBOII_LIB_CFLAGS := $(CFLAGS) -fPIC
 GBBOII_LIB_LDFLAGS := $(LDFLAGS) -fPIC --shared -lc -Wl,-soname,$(GBBOII_LIB_NAME).so.$(GBBOII_VERSION_MAJOR).$(GBBOII_VERSION_MINOR).$(GBBOII_VERSION_PATCH)
 
@@ -38,8 +41,8 @@ $(GBBOII_LIB): $(GBBOII_SRC) $(GBBOII_HEADERS) $(GBBOII_OBJ)
 %.o: %.cpp
 	$(CXX) -c $(CFLAGS) -fPIC $(LDFLAGS) -o $@ $<
 
-bin/main: src/main.cpp
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(GBBOII_LIB_DIR)/libgbboii.so.0.1.0 -o $@ $<
+bin/main: src/main.cpp src/gpu/*.cpp src/gpu/*.hpp
+	$(CXX) $(CFLAGS) $(SDL_CFLAGS) $(LDFLAGS) $(SDL_LDFLAGS) $(GBBOII_LIB_DIR)/libgbboii.so.0.1.0 -o $@ src/main.cpp
 
 run: all bin/main
 	LD_LIBRARY_PATH=$(GBBOII_LIB_DIR) bin/main DMG_ROM.bin
