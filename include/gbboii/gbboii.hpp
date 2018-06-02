@@ -4,13 +4,7 @@
 #include <gbboii/utils.hpp>
 #include <gbboii/cpu.hpp>
 #include <gbboii/memory.hpp>
-
-extern "C"{
-  #include <lua/lua.h>
-  #include <lua/lauxlib.h>
-  #include <lua/lualib.h>
-  #include <lua/lualib.h>
-}
+#include <gbboii/lua_lib.hpp>
 
 #include <stdbool.h>
 
@@ -45,6 +39,7 @@ public:
   void set_lcd_status();
   void draw_scanline();
 
+  void lua_init();
   int load_script(const char* filename);
 };
 

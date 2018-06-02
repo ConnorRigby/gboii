@@ -21,7 +21,7 @@ LUA_SRC_DIR_UNPACKED := $(LUA_SRC_DIR)/unpack_state
 LUA_INCLUDE_DIR_MADE := $(LUA_SRC_DIR)/include_dir_state
 
 $(LUA_LIB_BUILT): $(LUA_SRC_DIR_UNPACKED) $(LUA_INCLUDE_DIR_MADE)
-	cd lua/$(LUA_NAME) && make -e MYCFLAGS="$(LUA_BUILD_CFLAGS) -fPIC -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1" MYLDFLAGS="$(LUA_BUILD_LDFLAGS)" linux
+	cd lua/$(LUA_NAME) && make -e MYCFLAGS="$(LUA_BUILD_CFLAGS) -fPIC -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1" MYLDFLAGS="$(LUA_BUILD_LDFLAGS)" posix
 	cd lua/$(LUA_NAME) && make -e TO_LIB="liblua.so liblua.so.$(LUA_VERSION)" INSTALL_DATA='cp -d' INSTALL_TOP='$(LUA_BUILD_DIR)' install
 	cp $(LUA_BUILD_DIR)/bin/* $(PWD)/bin/
 	cp $(LUA_BUILD_DIR)/include/*.h $(LUA_INCLUDE_DIR)
