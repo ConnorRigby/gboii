@@ -43,7 +43,6 @@ int Gameboy::load_script(const char* filename) {
   } else {
     debug_print("Failed to load %s\r\n", filename);
   }
-  // lua_pcall(L, 0, 0, 0);
   return r;
 }
 
