@@ -4,6 +4,7 @@
 #include <inttypes.h>
 
 #define MEMORY_SIZE 0x10000
+#define BYTE_MAX 0xFF
 
 typedef uint16_t mem_addr_t;
 

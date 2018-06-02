@@ -1,4 +1,5 @@
 #include <gbboii/gbboii.hpp>
+#include <gbboii/memory.hpp>
 #include <gbboii/utils.hpp>
 #include <gbboii/lua_lib.hpp>
 
@@ -19,7 +20,7 @@ static int l_gbboii_peek8(lua_State* L) {
   Gameboy* gb = (Gameboy*)user_data_ptr;
 
   int r = luaL_checkinteger(L, 1);
-  if(r >= 0x10000) {
+  if(r >= MEMORY_SIZE) {
     luaL_error(L, "Argument to gbboii_peek8() out of bounds: %p\r\n", r);
   }
 
@@ -39,14 +40,14 @@ static int l_gbboii_poke8(lua_State* L) {
 
   int r;
   r = luaL_checkinteger(L, 1);
-  if(r >= 0x10000) {
+  if(r >= MEMORY_SIZE) {
     luaL_error(L, "First argument to gbboii_poke8() out of bounds: %p\r\n", r);
   }
 
   uint16_t addr = (uint16_t)r;
 
   r = luaL_checkinteger(L, 2);
-  if(r >= 0xFF) {
+  if(r >= BYTE_MAX) {
     luaL_error(L, "Second argument to gbboii_poke8() out of bounds: %p\r\n", r);
   }
 
@@ -69,7 +70,7 @@ static const struct luaL_Reg GBBOII_LUA_LIB [] = {
   {"print", l_gbboii_print},
   {"gbboii_peek8", l_gbboii_peek8},
   {"gbboii_poke8", l_gbboii_poke8},
-  {NULL, NULL} /* end of array */
+  {NULL, NULL}
 };
 
 void Gameboy::lua_init() {
