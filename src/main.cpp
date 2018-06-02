@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <string.h>
 
-
 #include <SDL2/SDL.h>
 #include "gpu/gui.hpp"
 #include "gpu/gui.cpp"

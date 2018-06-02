@@ -1,1 +1,1 @@
-print("\r\nHello World\r\n");
+gbboii_test();

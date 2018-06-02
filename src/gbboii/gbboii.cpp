@@ -7,17 +7,26 @@ const mem_addr_t ier = 0xffff;
 const mem_addr_t irr = 0xff0f;
 const int MAXCYCLES = 69905;
 
-static int l_my_print(lua_State* L) {
+static int l_gbboii_test(lua_State* L) {
+  lua_getglobal(L, "__GBBOII__");
+  Gameboy* gb = (Gameboy*) lua_topointer(L, 1);
+  debug_print("mem addr 0x0000: %#02x\r\n", gb->mem.read8(0x0000));
+  return 0;
+}
+
+static int l_gbboii_print(lua_State* L) {
     int nargs = lua_gettop(L);
     for (int i=1; i <= nargs; ++i) {
       debug_print_q(lua_tostring(L, i));
+      debug_print_q(" ");
     }
     debug_print_q("\r\n");
     return 0;
 }
 
-static const struct luaL_Reg printlib [] = {
-  {"print", l_my_print},
+static const struct luaL_Reg gbboiilib [] = {
+  {"print", l_gbboii_print},
+  {"gbboii_test", l_gbboii_test},
   {NULL, NULL} /* end of array */
 };
 
@@ -31,15 +40,17 @@ Gameboy::Gameboy(char* bootrom) : mem(Memory(bootrom)) {
   L = luaL_newstate();
   luaL_openlibs(L);
   lua_getglobal(L, "_G");
-  luaL_setfuncs(L, printlib, 0);
+  luaL_setfuncs(L, gbboiilib, 0);
   lua_pop(L, 1);
+  lua_pushlightuserdata(L, this);
+  lua_setglobal(L, "__GBBOII__");
 }
 
 int Gameboy::load_script(const char* filename) {
   int r = luaL_loadfile(L, filename);
   if(r == LUA_OK)  {
-    lua_pcall(L, 0, LUA_MULTRET, 0);
     debug_print("Successfully loaded %s\r\n", filename);
+    lua_pcall(L, 0, LUA_MULTRET, 0);
   } else {
     debug_print("Failed to load %s\r\n", filename);
   }
