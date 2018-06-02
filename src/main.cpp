@@ -17,13 +17,13 @@ int main(int argc, char const *argv[]);
 
 void emulate(Gameboy* c, gpu* g) {
   c->advance_frame();
-  g->step();
-  g->draw_pixels();
+  // g->step();
+  // g->draw_pixels();
 }
 
 int main(int argc, char const *argv[]) {
-  if(argc != 2) {
-    debug_print("usage: %s bootrom.bin rom.gb\r\n", argv[0]);
+  if(argc != 3) {
+    debug_print("usage: %s bootrom.bin script.lua\r\n", argv[0]);
     return(1);
   }
 
@@ -39,6 +39,7 @@ int main(int argc, char const *argv[]) {
   }
 
   Gameboy gb(bootrom_buffer);
+  gb.load_script(argv[2]);
   free(bootrom_buffer);
   gui screen;
   gpu g(&gb, &screen);

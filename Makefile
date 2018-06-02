@@ -37,7 +37,7 @@ clean:
 	$(RM) bin/main
 
 $(GBBOII_LIB): $(LUA_LIB_BUILT) $(GBBOII_SRC) $(GBBOII_HEADERS) $(GBBOII_OBJ)
-	$(CXX) $(GBBOII_LIB_CFLAGS) $(LUA_CFLAGS) $(GBBOII_LIB_LDFLAGS) $(GBBOII_OBJ) lib/liblua.a -o $@
+	$(CXX) $(GBBOII_LIB_CFLAGS) $(LUA_CFLAGS) $(GBBOII_LIB_LDFLAGS) $(GBBOII_OBJ) -llua -o $@
 	ln -s --force $@ $(GBBOII_LIB_DIR)/$(GBBOII_LIB_NAME).so.$(GBBOII_VERSION_MAJOR)
 	ln -s --force $@ $(GBBOII_LIB_DIR)/$(GBBOII_LIB_NAME).so
 
@@ -45,7 +45,7 @@ $(GBBOII_LIB): $(LUA_LIB_BUILT) $(GBBOII_SRC) $(GBBOII_HEADERS) $(GBBOII_OBJ)
 	$(CXX) -c $(CFLAGS) $(LUA_CFLAGS) -fPIC $(LDFLAGS) $(LUA_LDFLAGS) -o $@ $<
 
 bin/main: src/main.cpp src/gpu/*.cpp src/gpu/*.hpp
-	$(CXX) $(CFLAGS) $(SDL_CFLAGS)  $(LDFLAGS) $(SDL_LDFLAGS) $(LUA_LDFLAGS) $(GBBOII_LIB_DIR)/libgbboii.so.0.1.0 -o $@ src/main.cpp
+	$(CXX) $(CFLAGS) $(SDL_CFLAGS) $(LDFLAGS) $(SDL_LDFLAGS) -llua $(GBBOII_LIB_DIR)/libgbboii.so.0.1.0 -o $@ src/main.cpp
 
 run: all bin/main
-	LD_LIBRARY_PATH=$(GBBOII_LIB_DIR) bin/main DMG_ROM.bin
+	LD_LIBRARY_PATH=$(GBBOII_LIB_DIR) bin/main DMG_ROM.bin test.lua

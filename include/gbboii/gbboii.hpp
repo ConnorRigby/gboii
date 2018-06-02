@@ -5,6 +5,13 @@
 #include <gbboii/cpu.hpp>
 #include <gbboii/memory.hpp>
 
+extern "C"{
+  #include <lua/lua.h>
+  #include <lua/lauxlib.h>
+  #include <lua/lualib.h>
+  #include <lua/lualib.h>
+}
+
 #include <stdbool.h>
 
 #define TIMA 0xFF05
@@ -19,6 +26,7 @@ private:
   int scanline_counter;
   int frequency;
   bool interupt_master;
+  lua_State *L;
 public:
   CPU cpu;
   Memory mem;
@@ -36,6 +44,8 @@ public:
   bool is_lcd_enabled();
   void set_lcd_status();
   void draw_scanline();
+
+  int load_script(const char* filename);
 };
 
 

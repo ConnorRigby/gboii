@@ -7,6 +7,20 @@ const mem_addr_t ier = 0xffff;
 const mem_addr_t irr = 0xff0f;
 const int MAXCYCLES = 69905;
 
+static int l_my_print(lua_State* L) {
+    int nargs = lua_gettop(L);
+    for (int i=1; i <= nargs; ++i) {
+      debug_print_q(lua_tostring(L, i));
+    }
+    debug_print_q("\r\n");
+    return 0;
+}
+
+static const struct luaL_Reg printlib [] = {
+  {"print", l_my_print},
+  {NULL, NULL} /* end of array */
+};
+
 Gameboy::Gameboy(char* bootrom) : mem(Memory(bootrom)) {
   debug_print("Gameboy init.\r\n");
   running = true;
@@ -14,6 +28,23 @@ Gameboy::Gameboy(char* bootrom) : mem(Memory(bootrom)) {
   timer_counter = CLOCKSPEED/frequency;
   divider_counter = 0;
   scanline_counter = 0;
+  L = luaL_newstate();
+  luaL_openlibs(L);
+  lua_getglobal(L, "_G");
+  luaL_setfuncs(L, printlib, 0);
+  lua_pop(L, 1);
+}
+
+int Gameboy::load_script(const char* filename) {
+  int r = luaL_loadfile(L, filename);
+  if(r == LUA_OK)  {
+    lua_pcall(L, 0, LUA_MULTRET, 0);
+    debug_print("Successfully loaded %s\r\n", filename);
+  } else {
+    debug_print("Failed to load %s\r\n", filename);
+  }
+  // lua_pcall(L, 0, 0, 0);
+  return r;
 }
 
 bool Gameboy::is_lcd_enabled() { return nth_bit(mem.read8(0xFF40), 7); }
