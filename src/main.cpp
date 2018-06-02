@@ -15,16 +15,19 @@
 int load_file(const char* filename, char** buffer);
 int main(int argc, char const *argv[]);
 
-int fc = 0;
 void emulate(Gameboy* c, gpu* g) {
-    //int max_cycles = 69905; //  frequency of gameboy / 60
-    int cycles = 0;
-    c->tick();
-    g->step();
+    const int MAXCYCLES = 69905;
+    int cyclesThisUpdate = 0;
 
-    cycles += c->cpu.cycles;
-    fc++;
-    //printf("fc = %d\n", fc);
+    while(cyclesThisUpdate < MAXCYCLES) {
+      c->tick();
+      c->do_interupts();
+      int cycles = c->cpu.cycles;
+      cyclesThisUpdate+=cycles;
+      c->update_timers();
+      g->step();
+    }
+    g->draw_pixels();
 }
 
 int main(int argc, char const *argv[]) {

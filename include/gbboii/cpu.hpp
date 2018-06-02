@@ -17,10 +17,10 @@ typedef enum REG_NAMES {
 } reg_name_t;
 
 typedef enum FLAG_NAMES {
-  FLG_Z = 3,
-  FLG_N = 2,
-  FLG_H = 1,
-  FLG_C = 0
+  FLG_Z = 7,
+  FLG_N = 6,
+  FLG_H = 5,
+  FLG_C = 4
 } flag_name_t;
 
 class CPU {

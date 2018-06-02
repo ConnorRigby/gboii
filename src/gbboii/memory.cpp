@@ -24,9 +24,48 @@ uint16_t Memory::read16(mem_addr_t addr) {
   return result;
 }
 
-void Memory::write8(mem_addr_t addr, uint8_t data) {
-  //memcpy(&mem[addr], &data, sizeof(uint8_t));
-  mem[addr] = data;
+void Memory::write8(mem_addr_t address, uint8_t data) {
+  // dont allow any writing to the read only memory
+   if ( address < 0x8000 ) {
+     debug_print("Memory write below 0x8000 forbidden\r\n");
+   }
+
+   // writing to ECHO ram also writes in RAM
+   else if ( ( address >= 0xE000 ) && (address < 0xFE00) )  {
+     mem[address] = data ;
+     write8(address-0x2000, data) ;
+   }
+
+   // this area is restricted
+   else if ( ( address >= 0xFEA0 ) && (address < 0xFEFF) ) {
+     debug_print("Memory write between 0xFEA0 and 0xFEFF is forbidden\r\n");
+   }
+
+   //trap the divider register
+   else if (address == 0xFF04) {
+     mem[0xFF04] = 0;
+   }
+
+   // reset the current scanline if the game tries to write to it
+   else if (address == 0xFF44) {
+     mem[address] = 0 ;
+   }
+
+   else if (address == 0xFF46) {
+     do_dma_transfer(data);
+   }
+
+   // no control needed over this area so write to memory
+   else {
+     mem[address] = data ;
+   }
+}
+
+void Memory::do_dma_transfer(uint8_t data) {
+  uint16_t address = data << 8 ; // source address is data * 100
+  for (uint8_t i = 0; i < 0xA0; i++) {
+    write8(0xFE00+i, read8(address + i));
+  }
 }
 
 void Memory::inspect() {
@@ -36,12 +75,4 @@ void Memory::inspect() {
     debug_print_q("e[34m 0x%04x e[39m", read16(addr));
   }
   debug_print_q("\r\n");
-}
-
-const mem_addr_t ier = 0xffff;
-const mem_addr_t irr = 0xff0f;
-void Memory::request_interrupt(int id)  {
-	uint8_t data = read8(irr);
-	data |= (1 << id);
-	write8(irr, data);
 }
