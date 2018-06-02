@@ -57,13 +57,13 @@ static int l_gbboii_poke8(lua_State* L) {
 }
 
 static int l_gbboii_print(lua_State* L) {
-    int nargs = lua_gettop(L);
-    for (int i=1; i <= nargs; ++i) {
-      debug_print_q(lua_tostring(L, i));
-      debug_print_q(" ");
-    }
-    debug_print_q("\r\n");
-    return 0;
+  int nargs = lua_gettop(L);
+  for (int i=1; i <= nargs; ++i) {
+    debug_print_q(lua_tostring(L, i));
+    debug_print_q(" ");
+  }
+  debug_print_q("\r\n");
+  return 0;
 }
 
 static const struct luaL_Reg GBBOII_LUA_LIB [] = {
