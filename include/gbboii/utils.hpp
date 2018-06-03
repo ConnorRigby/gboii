@@ -30,7 +30,4 @@ uint8_t reset_bit(uint8_t data, int n);
 uint8_t write_bit(uint8_t data, int n, bool value);
 
 bool nth_bit(uint8_t number, int n);
-
-uint8_t signed_int8(uint8_t number);
-
 #endif

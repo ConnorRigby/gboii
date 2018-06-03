@@ -28,12 +28,13 @@ void Memory::write8(mem_addr_t address, uint8_t data) {
   // dont allow any writing to the read only memory
    if ( address < 0x8000 ) {
      debug_print("Memory write below 0x8000 forbidden\r\n");
+     mem[address] = data;
    }
 
    // writing to ECHO ram also writes in RAM
    else if ( ( address >= 0xE000 ) && (address < 0xFE00) )  {
-     mem[address] = data ;
-     write8(address-0x2000, data) ;
+     mem[address] = data;
+     write8(address-0x2000, data);
    }
 
    // this area is restricted
@@ -48,7 +49,7 @@ void Memory::write8(mem_addr_t address, uint8_t data) {
 
    // reset the current scanline if the game tries to write to it
    else if (address == 0xFF44) {
-     mem[address] = 0 ;
+     mem[address] = 0;
    }
 
    else if (address == 0xFF46) {
@@ -57,12 +58,12 @@ void Memory::write8(mem_addr_t address, uint8_t data) {
 
    // no control needed over this area so write to memory
    else {
-     mem[address] = data ;
+     mem[address] = data;
    }
 }
 
 void Memory::do_dma_transfer(uint8_t data) {
-  uint16_t address = data << 8 ; // source address is data * 100
+  uint16_t address = data << 8; // source address is data * 100
   for (uint8_t i = 0; i < 0xA0; i++) {
     write8(0xFE00+i, read8(address + i));
   }

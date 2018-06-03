@@ -18,12 +18,14 @@ Gameboy::Gameboy(char* bootrom) : mem(Memory(bootrom)) {
   lua_init();
 }
 
-bool Gameboy::is_lcd_enabled() { return nth_bit(mem.read8(0xFF40), 7); }
-bool Gameboy::is_clock_enabled() { return nth_bit(mem.read8(TMC), 2); }
+// bool Gameboy::is_lcd_enabled() { return nth_bit(mem.read8(0xFF40), 7); }
+// bool Gameboy::is_clock_enabled() { return nth_bit(mem.read8(TMC), 2); }
+bool Gameboy::is_lcd_enabled() { return true; }
+bool Gameboy::is_clock_enabled() { return true; }
 
 void Gameboy::advance_frame() {
   int cyclesThisUpdate = 0;
-  while(cyclesThisUpdate < MAXCYCLES) {
+  while(cyclesThisUpdate < MAXCYCLES && running) {
     execute_opcode();
     cyclesThisUpdate+=cpu.cycles;
     update_timers();
@@ -32,8 +34,204 @@ void Gameboy::advance_frame() {
   }
 }
 
-void Gameboy::draw_scanline() {
+void Gameboy::render_tiles(uint8_t lcd_control) {
+  uint16_t tile_data = 0;
+  uint16_t background_memory =0 ;
+  bool unsig = true;
 
+  uint8_t scroll_y = mem.read8(0xFF42);
+  uint8_t scroll_x = mem.read8(0xFF43);
+  uint8_t window_x = mem.read8(0xFF4A);
+  uint8_t window_y = mem.read8(0xFF4B) - 7;
+
+  bool using_window = false;
+
+  // Window is enabled
+  if(nth_bit(lcd_control, 5)) {
+    using_window = window_y <= mem.read8(0xFF44);
+  }
+
+  if(nth_bit(lcd_control, 4)) {
+    tile_data = 0x8000;
+  } else {
+    tile_data = 0x8800;
+    unsig = false;
+  }
+
+  if(using_window == false) {
+    background_memory = nth_bit(lcd_control, 3) ? 0x9C00 : 0x9800;
+  } else {
+    background_memory = nth_bit(lcd_control, 6) ? 0x9C00 : 0x9800;
+  }
+
+  uint8_t y_pos = 0;
+  uint8_t x_pos;
+  if(using_window) {
+    y_pos = mem.read8(0xFF44) - window_y;
+  } else {
+    y_pos = mem.read8(0xFF44) + scroll_y;
+  }
+
+  uint8_t tile_row = (((uint8_t)(y_pos/8)) * 32);
+  for(int pixel = 0; pixel < 160; pixel++) {
+    x_pos = pixel+scroll_x;
+    if(using_window) {
+      if(pixel >= window_x) x_pos = pixel - window_x;
+    }
+
+  uint16_t tile_col = (x_pos/8);
+  int8_t tile_num;
+  uint8_t tile_address = background_memory + tile_row + tile_col;
+  if(unsig) {
+    tile_num = (uint8_t)mem.read8(tile_address);
+  } else {
+    tile_num = (int8_t)mem.read8(tile_address);
+  }
+
+  uint16_t tile_location = tile_data;
+  if(unsig) {
+    tile_location += (tile_num * 16);
+  } else {
+    tile_location += (int8_t)((tile_num+128) * 16);
+  }
+
+  uint8_t line = y_pos % 8;
+  line *= 2;
+  uint8_t data1 = mem.read8(tile_location + line);
+  uint8_t data2 = mem.read8(tile_location + line + 1);
+
+  int color_bit = x_pos % 8;
+  color_bit -= 7;
+  color_bit *= -1;
+
+  int color_num = (int)nth_bit(data2, color_bit);
+  color_num <<= 1;
+  color_num |= (int)nth_bit(data1, color_bit);
+
+  gb_color_t col = get_color(color_num, 0xFF47);
+  int red = 0;
+  int green = 0;
+  int blue = 0;
+
+  switch(col) {
+    case WHITE:   	 red = 255;  green = 255;  blue = 255; break;
+    case LIGHT_GRAY: red = 0xCC; green = 0xCC; blue = 0xCC; break;
+    case DARK_GRAY:	 red = 0x77; green = 0x77; blue = 0x77; break;
+    case BLACK: break;
+  }
+
+  int finally = mem.read8(0xFF44);
+  if ((finally<0) || (finally>143) || (pixel<0) || (pixel>159)) {
+    return;
+  }
+
+  screen_data[pixel][finally][0] = red;
+  screen_data[pixel][finally][1] = green;
+  screen_data[pixel][finally][2] = blue;
+  }
+}
+
+void Gameboy::render_sprites(uint8_t lcd_control) {
+  bool use8x16 = false;
+  use8x16 = nth_bit(lcd_control, 2);
+
+  for(uint8_t sprite = 0; sprite < 40; sprite++) {
+    uint8_t index = sprite*4;
+    uint8_t y_pos = mem.read8(0xFE00+index) - 16;
+    uint8_t x_pos = mem.read8(0xFE00+index+1) - 8;
+    uint8_t tile_location = mem.read8(0xFE00+index+2);
+    uint8_t attributes = mem.read8(0xFE00 + index+3);
+
+    bool y_flip = nth_bit(attributes, 6);
+    bool x_flip = nth_bit(attributes, 5);
+
+    int scanline = mem.read8(0xFF44);
+    int y_size = 8;
+    if(use8x16) y_size = 16;
+
+    if((scanline >= y_pos) && (scanline < (y_pos + y_size))) {
+      int line = scanline - y_pos;
+
+      if(y_flip) {
+        line-=y_size;
+        line *= -1;
+      }
+
+      line *= 2;
+      uint16_t data_address = (0x8000 + (tile_location * 16)) + line;
+      uint8_t data1 = mem.read8(data_address);
+      uint8_t data2 = mem.read8(data_address + 1);
+
+      for(int tile_pixel = 7; tile_pixel >= 0; tile_pixel--) {
+        int color_bit = tile_pixel;
+        if(x_flip) {
+          color_bit -= 7;
+          color_bit *= -1;
+        }
+
+        int color_num = nth_bit(data2, color_bit);
+        color_num <<= 1;
+        color_num |= nth_bit(data1, color_bit);
+
+        uint16_t color_address = nth_bit(attributes, 4) ? 0xFF49 : 0xFF48;
+        gb_color_t col = get_color(color_num, color_address);
+
+        if(col == WHITE) return;
+
+        int red = 0;
+        int green = 0;
+        int blue = 0;
+
+        switch(col) {
+          case WHITE:      red =255;  green=255;  blue=255; break;
+          case LIGHT_GRAY: red =0xCC; green=0xCC; blue=0xCC; break;
+          case DARK_GRAY:  red =0x77; green=0x77; blue=0x77; break;
+          case BLACK: break;
+        }
+
+        int x_pix = 0 - tile_pixel;
+        x_pix += 7;
+
+        int pixel = x_pos+x_pix;
+        if ((scanline<0) || (scanline>143) || (pixel<0) || (pixel>159)) return;
+
+         screen_data[pixel][scanline][0] = red;
+         screen_data[pixel][scanline][1] = green;
+         screen_data[pixel][scanline][2] = blue;
+      }
+    }
+  }
+}
+
+gb_color_t Gameboy::get_color(uint8_t color_num, uint16_t address) {
+  gb_color_t res = WHITE;
+  uint8_t palette = mem.read8(address);
+  int hi = 0, lo = 0;
+
+  switch(color_num) {
+    case 0: { hi = 1; lo = 0; } break;
+    case 1: { hi = 3; lo = 2; } break;
+    case 2: { hi = 5; lo = 4; } break;
+    case 3: { hi = 7; lo = 6; } break;
+  }
+  int color = 0;
+  color = (int)nth_bit(palette, hi) << 1;
+  color |= (int)nth_bit(palette, lo);
+
+  switch(color) {
+    case 0: {res = WHITE;} break;
+    case 1: {res = LIGHT_GRAY;} break;
+    case 2: {res = DARK_GRAY;} break;
+    case 3: {res = BLACK;} break;
+  }
+  return res;
+}
+
+void Gameboy::draw_scanline() {
+  uint8_t lcd_control = mem.read8(0xFF40);
+  // debug_print("draw scanline: %#04x\r\n", lcd_control);
+  if(nth_bit(lcd_control, 0)) render_tiles(lcd_control);
+  if(nth_bit(lcd_control, 1)) render_sprites(lcd_control);
 }
 
 void Gameboy::set_lcd_status() {
@@ -100,7 +298,7 @@ void Gameboy::update_graphics() {
   int cycles = cpu.cycles;
   set_lcd_status();
   if(is_lcd_enabled())  {
-    scanline_counter += cycles;
+    scanline_counter -= cycles;
   } else {
     return;
   }
@@ -108,7 +306,7 @@ void Gameboy::update_graphics() {
   if (scanline_counter <= 0) {
     // time to move onto next scanline
     mem.mem[0xFF44]++;
-    uint8_t current_line = mem.read8(0xFF44) ;
+    uint8_t current_line = mem.read8(0xFF44);
 
     scanline_counter = 456;
 
@@ -213,18 +411,41 @@ void Gameboy::update_timers() {
 void Gameboy::execute_opcode() {
   uint16_t addr = cpu.read_register(REG_PC);
   opcode_t instr = mem.read8(addr);
-  // debug_print("Gameboy tick: instr: %#04x PC: %#04x\r\n", instr, addr);
+  debug_print("Gameboy tick: instr: %#04x PC: %#04x\r\n", instr, addr);
 
   switch(instr) {
 
-    // DEC B 1/4 z1h-
+    // LD (BC),A 1/8 ----
+    case 0x02: {
+      mem_addr_t addr = cpu.read_register(REG_BC);
+      uint8_t data = cpu.read_registerh(REG_AF);
+      mem.write8(addr, data);
+      cpu.write_register(REG_PC, addr + 1);
+      cpu.cycles=8;
+    } break;
+
+    // INC B 1/4 Z0H-
+    case 0x04: {
+      uint8_t before = cpu.read_registerh(REG_BC);
+      uint8_t data = before + 1;
+      cpu.write_registerh(REG_BC, data);
+      cpu.write_flag(FLG_Z, data == 0);
+      cpu.reset_flag(FLG_N);
+      // TODO(Cononor) - I have no idea if this is correct.
+      cpu.write_flag(FLG_H, ((before & 0xF) == 0xF));
+      cpu.write_register(REG_PC, addr+1);
+      cpu.cycles=4;
+    } break;
+
+    // DEC B 1/4 Z1H-
     case 0x05: {
-      uint8_t data = cpu.read_registerh(REG_BC)-1;
+      uint8_t before = cpu.read_registerh(REG_BC);
+      uint8_t data = before-1;
       cpu.write_registerh(REG_BC, data);
       cpu.write_flag(FLG_Z, data == 0);
       cpu.set_flag(FLG_N);
       // TODO(Cononor) - I have no idea if this is correct.
-      cpu.write_flag(FLG_H, ((data & 0xF) == 0xF));
+      cpu.write_flag(FLG_H, (before & 0x0F) == 0);
       cpu.write_register(REG_PC, addr+1);
       cpu.cycles=4;
     } break;
@@ -232,21 +453,21 @@ void Gameboy::execute_opcode() {
     // LD B,d8 2/8 ----
     case 0x06: {
       cpu.write_register(REG_PC, addr+1);
-      addr = cpu.read_register(REG_PC);
-      uint8_t data = mem.read8(addr);
+      uint8_t data = mem.read8(cpu.read_register(REG_PC));
       cpu.write_registerh(REG_BC, data);
-      cpu.write_register(REG_PC, addr+1);
+      cpu.write_register(REG_PC, addr+2);
       cpu.cycles=8;
     } break;
 
     // DEC C 1/4 Z1H-
     case 0x0D: {
-      uint8_t data = cpu.read_registerl(REG_BC)-1;
+      uint8_t before = cpu.read_registerl(REG_BC);
+      uint8_t data = before-1;
       cpu.write_registerl(REG_BC, data);
       cpu.write_flag(FLG_Z, data == 0);
       cpu.set_flag(FLG_N);
       // TODO(Cononor) - I have no idea if this is correct.
-      cpu.write_flag(FLG_H, ((data & 0xF) == 0xF));
+      cpu.write_flag(FLG_H, (before & 0x0F) == 0);
       cpu.write_register(REG_PC, addr+1);
       cpu.cycles=4;
     } break;
@@ -276,17 +497,37 @@ void Gameboy::execute_opcode() {
       cpu.cycles=8;
     } break;
 
+    // DEC D 1/4 Z1H-
+    case 0x15: {
+      uint8_t before = cpu.read_registerh(REG_DE);
+      uint8_t data = before-1;
+      cpu.write_registerh(REG_DE, data);
+      cpu.write_flag(FLG_Z, data == 0);
+      cpu.set_flag(FLG_N);
+      // TODO(Cononor) - I have no idea if this is correct.
+      cpu.write_flag(FLG_H, (before & 0x0F) == 0);
+      cpu.write_register(REG_PC, addr+1);
+      cpu.cycles=4;
+    } break;
+
     // RLA 1/4 000C
     case 0x17: {
-      bool carry = cpu.read_flag(FLG_C);
-      uint8_t reg_value = cpu.read_registerh(REG_AF);
-      uint8_t reg_shift = ((reg_value << 1) | (reg_value >> (8 - 1))) & 255; /* (0b11111111) */
-      reg_shift = write_bit(reg_shift, 0, carry);
-      cpu.write_flag(FLG_Z, nth_bit(reg_value, 7) == 0);
-      cpu.reset_flag(FLG_H);
-      cpu.reset_flag(FLG_N);
-      cpu.write_flag(FLG_C, nth_bit(reg_value, 7));
-      cpu.write_registerl(REG_BC, reg_shift);
+      uint8_t reg = cpu.read_registerh(REG_AF);
+      bool is_carry_set = cpu.read_flag(FLG_C);
+      bool is_msb_set = nth_bit(reg, 7);
+      cpu.write_registerl(REG_AF, 0);
+      uint8_t value = reg;
+      value <<= 1;
+
+      if(is_msb_set)
+        cpu.set_flag(FLG_C);
+
+      if(is_carry_set)
+        value = set_bit(value, 0);
+
+      if(value == 0) cpu.set_flag(FLG_Z);
+
+      cpu.write_registerh(REG_AF, value);
       cpu.write_register(REG_PC, addr+1);
       cpu.cycles=4;
     } break;
@@ -295,10 +536,8 @@ void Gameboy::execute_opcode() {
     case 0x18: {
       cpu.write_register(REG_PC, addr+1);
       uint16_t pc = cpu.read_register(REG_PC);
-      // TODO(Connor) not sure why i have to do this negative thing.
-      uint8_t jmp_offset = signed_int8(mem.read8(pc));
-      // debug_print("\tJR %#04x + (%d) = %#04x\r\n", pc, jmp_offset, (pc+1)-jmp_offset);
-      cpu.write_register(REG_PC, (pc+1)-jmp_offset);
+      int8_t jmp_offset = (int8_t)mem.read8(pc);
+      cpu.write_register(REG_PC, (pc+1)+jmp_offset);
       cpu.cycles=12;
     } break;
 
@@ -311,6 +550,29 @@ void Gameboy::execute_opcode() {
       cpu.cycles=8;
     } break;
 
+    // DEC E 1/4 Z1H-
+    case 0x1D: {
+      uint8_t before = cpu.read_registerl(REG_DE);
+      uint8_t data = before-1;
+      cpu.write_registerl(REG_DE, data);
+      cpu.write_flag(FLG_Z, data == 0);
+      cpu.set_flag(FLG_N);
+      // TODO(Cononor) - I have no idea if this is correct.
+      cpu.write_flag(FLG_H, (before & 0x0F) == 0);
+      cpu.write_register(REG_PC, addr+1);
+      cpu.cycles=4;
+    } break;
+
+    // LD E,d8 2/8 ----
+    case 0x1E: {
+      cpu.write_register(REG_PC, addr+1);
+      mem_addr_t read_addr = cpu.read_register(REG_PC);
+      uint8_t data = mem.read8(read_addr);
+      cpu.write_registerl(REG_DE, data);
+      cpu.write_register(REG_PC, addr+2);
+      cpu.cycles=8;
+    } break;
+
     //JR NZ,r8 2/12|8 ----
     case 0x20: {
       cpu.write_register(REG_PC, addr+1);
@@ -318,10 +580,9 @@ void Gameboy::execute_opcode() {
       bool zero_flag_is_reset = cpu.flag_is_reset(FLG_Z);
       // debug_print("\tZero flag %s reset: %d\r\n", zero_flag_is_reset ? "is" : "is not", zero_flag_is_reset);
       if(zero_flag_is_reset == 1) {
-        // TODO(Connor) not sure why i have to do this negative thing.
-        uint8_t jmp_offset = signed_int8(mem.read8(pc));
-        // debug_print("\tJR %#04x + (%d) = %#04x\r\n", pc, jmp_offset, (pc+1)-jmp_offset);
-        cpu.write_register(REG_PC, (pc+1)-jmp_offset);
+        int8_t jmp_offset = (int8_t)mem.read8(pc);
+        // debug_print("\tJR %#04x + (%d) = %#08x\r\n", pc, jmp_offset, (pc+1)+jmp_offset);
+        cpu.write_register(REG_PC, (pc+1+jmp_offset));
         cpu.cycles=12;
       } else {
         // debug_print("\tNot JMP: %#04x\r\n", pc+1);
@@ -355,6 +616,19 @@ void Gameboy::execute_opcode() {
       cpu.cycles=8;
     } break;
 
+    // INC H 1/4 Z0H-
+    case 0x24: {
+      uint8_t before = cpu.read_registerh(REG_HL);
+      uint8_t data = before + 1;
+      cpu.write_registerh(REG_HL, data);
+      cpu.write_flag(FLG_Z, data == 0);
+      cpu.reset_flag(FLG_N);
+      // TODO(Cononor) - I have no idea if this is correct.
+      cpu.write_flag(FLG_H, ((before & 0xF) == 0xF));
+      cpu.write_register(REG_PC, addr+1);
+      cpu.cycles=4;
+    } break;
+
     // JR Z,r8 2/12|8 ----
     case 0x28: {
       cpu.write_register(REG_PC, addr+1);
@@ -362,10 +636,9 @@ void Gameboy::execute_opcode() {
       bool zero_flag_is_set = cpu.flag_is_set(FLG_Z);
       // debug_print("\tZero flag %s set: %d\r\n", zero_flag_is_set ? "is" : "is not", zero_flag_is_set);
       if(zero_flag_is_set == 1) {
-        // TODO(Connor) not sure why i have to do this negative thing.
-        uint8_t jmp_offset = signed_int8(mem.read8(pc));
+        int8_t jmp_offset = (int8_t)mem.read8(pc);
         // debug_print("\tJR %#04x + (%d) = %#04x\r\n", pc, jmp_offset, (pc+1)-jmp_offset);
-        cpu.write_register(REG_PC, (pc+1)-jmp_offset);
+        cpu.write_register(REG_PC, (pc+1)+jmp_offset);
         cpu.cycles=12;
       } else {
         // debug_print("\tNot JMP: %#04x\r\n", pc+1);
@@ -413,12 +686,13 @@ void Gameboy::execute_opcode() {
 
     // DEC A 1/4 Z1H-
     case 0x3D: {
-      uint8_t data = cpu.read_registerh(REG_AF)-1;
+      uint8_t before = cpu.read_registerh(REG_AF);
+      uint8_t data = before-1;
       cpu.write_registerh(REG_AF, data);
       cpu.write_flag(FLG_Z, data == 0);
       cpu.set_flag(FLG_N);
       // TODO(Cononor) - I have no idea if this is correct.
-      cpu.write_flag(FLG_H, ((data & 0xF) == 0xF));
+      cpu.write_flag(FLG_H, (before & 0x0F) == 0);
       cpu.write_register(REG_PC, addr+1);
       cpu.cycles=4;
     } break;
@@ -439,6 +713,20 @@ void Gameboy::execute_opcode() {
       cpu.cycles=4;
     } break;
 
+    // LD D,A 1/4 ----
+    case 0x57: {
+      cpu.write_registerl(REG_DE, cpu.read_registerh(REG_AF));
+      cpu.write_register(REG_PC, addr + 1);
+      cpu.cycles=4;
+    } break;
+
+    // LD H,A 1/4 ----
+    case 0x67: {
+      cpu.write_registerh(REG_HL, cpu.read_registerh(REG_AF));
+      cpu.write_register(REG_PC, addr + 1);
+      cpu.cycles=4;
+    } break;
+
     // LD (HL),A 1/8 ----
     case 0x77: {
       mem_addr_t write_addr = cpu.read_register(REG_HL);
@@ -455,11 +743,40 @@ void Gameboy::execute_opcode() {
       cpu.cycles=4;
     } break;
 
+    // LD A,H 1/4 ----
+    case 0x7C: {
+      cpu.write_registerh(REG_AF, cpu.read_registerh(REG_HL));
+      cpu.write_register(REG_PC, addr + 1);
+      cpu.cycles=4;
+    } break;
+
+    // SUB B 1/4 Z1HC
+    case 0x90: {
+      uint8_t before = cpu.read_registerh(REG_AF);
+      uint8_t to_subtract = cpu.read_registerh(REG_BC);
+
+      uint8_t result = before;
+      result -= to_subtract;
+      cpu.write_registerh(REG_AF, result);
+      cpu.write_registerl(REG_AF, 0);
+
+      if(result == 0) cpu.set_flag(FLG_Z);
+      cpu.set_flag(FLG_N);
+      if(before < to_subtract) cpu.set_flag(FLG_C);
+
+      int8_t htest = (int8_t)(before & 0xF);
+      htest -= (to_subtract & 0xF) ;
+      if (htest < 0) cpu.set_flag(FLG_H);
+
+      cpu.write_register(REG_PC, addr + 1);
+      cpu.cycles += 4;
+    } break;
+
     // XOR A 1/4 z000
     case 0xAF: {
       uint8_t val = cpu.read_registerh(REG_AF);
       cpu.xora(val);
-      cpu.write_register(REG_PC, cpu.read_register(REG_PC) + 1);
+      cpu.write_register(REG_PC, addr + 1);
       cpu.cycles += 4;
     } break;
 
@@ -504,15 +821,23 @@ void Gameboy::execute_opcode() {
       switch(instr) {
         // RL C 2/8 Z00C
         case 0x11: {
-          bool carry = cpu.read_flag(FLG_C);
-          uint8_t reg_value = cpu.read_registerl(REG_BC);
-          uint8_t reg_shift = ((reg_value << 1) | (reg_value >> (8 - 1))) & 255; /* (0b11111111) */
-          reg_shift = write_bit(reg_shift, 0, carry);
-          cpu.write_flag(FLG_Z, nth_bit(reg_value, 7) == 0);
-          cpu.reset_flag(FLG_H);
-          cpu.reset_flag(FLG_N);
-          cpu.write_flag(FLG_C, nth_bit(reg_value, 7));
-          cpu.write_registerl(REG_BC, reg_shift);
+          uint8_t reg = cpu.read_registerl(REG_BC);
+          bool is_carry_set = cpu.read_flag(FLG_C);
+          bool is_msb_set = nth_bit(reg, 7);
+          cpu.write_registerl(REG_AF, 0);
+          uint8_t value = reg;
+          value <<= 1;
+
+          if(is_msb_set)
+            cpu.set_flag(FLG_C);
+
+          if(is_carry_set)
+            value = set_bit(value, 0);
+
+          if (value == 0)
+            cpu.set_flag(FLG_Z);
+
+          cpu.write_registerl(REG_BC, value);
           cpu.write_register(REG_PC, addr+1);
           cpu.cycles=4;
         } break;
@@ -548,13 +873,13 @@ void Gameboy::execute_opcode() {
     } break;
 
     // LDH (a8),A 2/12 ---
-    // LD A,($FF00+a8) 2/12 ---
+    // LLD ($FF00+a8),A 2/12 ---
     case 0xE0: {
       mem_addr_t write_addr = 0xFF00 + mem.read8(addr + 1);
       uint8_t data = cpu.read_registerh(REG_AF);
       mem.write8(write_addr, data);
       cpu.write_register(REG_PC, addr+2);
-      cpu.cycles += 4;
+      cpu.cycles += 12;
     } break;
 
     // LD (C),A 2/8 ----
@@ -578,32 +903,49 @@ void Gameboy::execute_opcode() {
       cpu.cycles=16;
     } break;
 
+    // LDH A,(a8) 2/12 ----
+    // LD A,($FF00+a8) 2/12 ----
+    case 0xF0: {
+      cpu.write_register(REG_PC, addr+1);
+      mem_addr_t read_addr = 0xFF00+mem.read8(cpu.read_register(REG_PC));
+      uint8_t data = mem.read8(read_addr);
+      cpu.write_registerh(REG_AF, data);
+      cpu.write_register(REG_PC, addr+2);
+      cpu.cycles=12;
+    } break;
+
     // CP d8 2/8 Z1HC
     case 0xFE: {
       cpu.write_register(REG_PC, addr+1);
-      uint8_t data = mem.read8(cpu.read_register(REG_PC));
-      uint8_t a_reg_val = cpu.read_registerh(REG_AF);
+      uint8_t to_subtract = mem.read8(cpu.read_register(REG_PC));
+      uint8_t reg = cpu.read_registerh(REG_AF);
+      uint8_t before = reg;
+      reg-=to_subtract;
+      cpu.write_registerl(REG_AF, 0);
 
-      cpu.write_flag(FLG_Z, data == a_reg_val);
-      cpu.write_flag(FLG_C, a_reg_val < data);
+      if(reg == 0) cpu.set_flag(FLG_Z);
       cpu.set_flag(FLG_N);
 
+      if(before < to_subtract) cpu.set_flag(FLG_C);
+
       // TODO(Cononor) - I have no idea if this is correct.
-      cpu.write_flag(FLG_H, ( (((data+a_reg_val) & 0xf) - (1 & 0xf)) & 0x10) == 0x10);
+      int8_t htest = (int8_t)before & 0xF;
+      htest -= (to_subtract & 0xF);
+      if(htest < 0) cpu.set_flag(FLG_H);
 
       cpu.write_register(REG_PC, addr+2);
       cpu.cycles=8;
     } break;
 
     default: {
-      // debug_print("Unknown instruction: %#04x at address: %#04x  \r\n", instr, addr);
-      // running = false;
+      debug_print("Unknown instruction: %#04x at address: %#04x  \r\n", instr, addr);
+      running = false;
     } break;
   }
 
-  // if(addr == cpu.read_register(REG_PC) && running) {
-  //   debug_print("YOU FORGOT TO INC PC!!!\r\n");
-  //   running = false;
-  // }
+  if(addr == cpu.read_register(REG_PC) && running) {
+    debug_print("YOU FORGOT TO INC PC!!!\r\n");
+    running = false;
+  }
 
 }

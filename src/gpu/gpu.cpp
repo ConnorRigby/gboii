@@ -246,8 +246,7 @@ void gpu::render_tiles()
         {
           // tilenum = (int8_t) c->read(addr);
           // tilenum = (int8_t) c->mem.read8(addr);
-          tilenum = signed_int8(c->mem.read8(addr));
-          tilenum = -tilenum;
+          tilenum = (int16_t) c->mem.read8(addr);
         }
         else
         {

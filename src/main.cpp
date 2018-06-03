@@ -16,8 +16,16 @@ int main(int argc, char const *argv[]);
 
 void emulate(Gameboy* c, gpu* g) {
   c->advance_frame();
-  // g->step();
-  // g->draw_pixels();
+  for (int i = 0; i < 144; i++)
+  {
+      for (int j = 0; j < 160; j++) {
+          int red = c->screen_data[j][i][0], blue = c->screen_data[j][i][1], green = c->screen_data[j][i][2];
+          // printf("\r r=%d b=%d, g=%d", red, blue, green);
+          SDL_SetRenderDrawColor(g->screen->renderer, red, blue, green, 0xFF);
+          SDL_RenderDrawPoint(g->screen->renderer, j, i);
+      }
+  }
+  SDL_RenderPresent(g->screen->renderer);
 }
 
 int main(int argc, char const *argv[]) {
@@ -38,27 +46,34 @@ int main(int argc, char const *argv[]) {
   }
 
   Gameboy gb(bootrom_buffer);
-  gb.load_script(argv[2]);
+  // gb.load_script(argv[2]);
   free(bootrom_buffer);
+
+  // while(gb.running) {
+  //   gb.advance_frame();
+  // }
+  // return 0;
   gui screen;
   gpu g(&gb, &screen);
 
   screen.init();
 
-  int quit = 0;
+  bool quit = false;
   SDL_Event e;
   //LTimer fps;
-  while (!quit)
+  while (quit == false)
   {
       while(SDL_PollEvent(&e) != 0)
       {
           //User requests quit
           if(e.type == SDL_QUIT)
           {
-              quit = 1;
+              quit = true;
           }
       }
       emulate(&gb, &g);
+      // quit = gb.running;
+      fflush(stderr);
   }
   return 0;
 }
